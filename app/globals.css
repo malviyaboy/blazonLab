@@ -1,0 +1,386 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: Arial, Helvetica, sans-serif,Montserrat;
+  width: 100%;
+}
+h4{
+  font-family: Libre Baskerville;
+}
+.anchor{
+  font-family: Libre Baskerville;
+}
+p{
+  color: #4a4a4a;
+}
+
+
+.Heading_title {
+  font-size: 30px;
+}
+
+/* nav mobile view */
+.mobileView{
+  width: 100%;
+    background-color: #fff;
+    position: absolute;
+}
+.navbar a{
+  font-family: Libre Baskerville;;
+}
+.navbar a:hover , .navbar button:hover{
+color: #70d628;
+cursor: pointer;
+}
+
+.widget_container {
+  padding: 0px 0px 0px 15px;
+  border-style: solid;
+  border-width: 0px 0px 0px 5px;
+  border-color: #8F489A;
+  margin-bottom: 20px;
+}
+
+.footerBottom {
+  padding: 1rem;
+  background-color: #3f444a;
+  /* height: 32vh; */
+  color: #a0a8b1;
+  position: static;
+  bottom: 0;
+}
+.footerBottom li{
+  line-height: 1.5rem !important;
+  font-size: 13px;
+  padding: 2px 0;
+}
+.gps .elementor-widget-container p{
+  /* font-size: 14px; */
+  font-weight: 400;
+  font-family: Montserrat;
+  letter-spacing: normal;
+}
+
+.footer{
+  position: relative;
+  line-height: 25.2px;
+}
+ .footer ul li::before{
+  content: '';
+  position: absolute;
+  left: -10px;
+  top: 8px; 
+  width: 4px; 
+  height: 4px; 
+  border: 2px solid currentColor; 
+  border-radius: 50%; 
+}
+.gps .elementor-widget-container{
+  line-height: 25.2px;
+}
+.gps .grid div{
+  justify-content: center;
+}
+
+
+
+.elementor-widget-container{
+  margin: 32px;
+}
+
+
+.footerBottom h3 {
+  border-left: 0.2rem solid #70d628;
+  color: #ffffff;
+  padding-left: 1rem;
+  height: 1rem;
+}
+
+/* .legel li,.keyProduct li {
+  position: relative !important;
+  transition: 0.3s;
+} */
+
+.legel li:hover,.keyProduct li:hover {
+  position: relative;
+  left: 1rem;
+  transform: translate3d(5px, 0, 0);
+}
+
+.legel li ,.keyProduct li{
+  position: relative;
+  top: -1px;
+  left: 1rem;
+  -webkit-transition: -webkit-transform 0.3s ease;
+  transition: -webkit-transform 0.3s ease;
+  transition: transform 0.3s ease;
+  transition: transform 0.3s ease, -webkit-transform 0.3s ease;
+}
+
+.legel ul li::before {
+  content: '';
+  position: absolute;
+  left: -15px;
+  top: 10px; 
+  width: 8px; 
+  height: 8px; 
+  border: 2px solid currentColor; 
+  border-radius: 50%; 
+}
+.keyProduct ul li::before{
+  content: '';
+  position: absolute;
+  left: -15px;
+  top: 10px; /* Adjust vertical alignment as needed */
+  width: 8px; /* Size of the bullet */
+  height: 8px; /* Size of the bullet */
+  border: 2px solid currentColor; /* Outline color, using current text color */
+  border-radius: 50%; /* Creates a circle */
+  transition: all .3s ease;
+}
+
+.productCard {
+  position: relative;
+  border: 1px #222 !important;
+  box-shadow: 0px 0px 7px 0px rgba(0, 0, 0, 0.5) !important;
+  margin: 10px;
+  padding: 20px;
+  border-radius: 25px !important;
+  max-height: 58rem;
+}
+
+.productCard button {
+  background-color: #5bc0de;
+}
+
+.contact ul li {
+  display: inline-block;
+}
+
+.contact ul li:first-child {
+  display: inline-block;
+  /* border: 1px solid #202326; */
+}
+
+.footerBottom .container p {
+  font-size: 13px;
+  padding: 2px 0;
+  line-height: 1.8rem;
+  color: #a0a8b1;
+}
+.footerBottom{
+  font-weight: 400;
+  font-size: 14px;
+}
+.REQUEST {
+  background-color: #70d628;
+  padding: 1.4rem;
+  font-family: Libre Baskerville;
+}
+.REQUEST:hover{
+  color: #70d628;
+  background-color: #258721;
+}
+/* overlay gear theme */
+.elementor-background-overlay{
+  background-image: url('/gear.png');
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-size: cover !important;
+    /* opacity: 0.28; */
+    height: 100%;
+    width: 80%;
+    top: 0;
+    left: 0;
+    position: relative;
+    /* margin-left: auto;
+    margin-right: auto; */
+}
+.Gps_tracker{
+ position: relative;
+ margin: auto;
+}
+.RequestPage {
+  display: block;
+  width: 100%;
+  background-color: #3f444a;
+  /* margin: 1rem 0; */
+  color: #ffffff;
+  padding: 2rem 0;
+}
+
+.RequestPage div {
+  width: 100%;
+}
+
+.contactform button:hover {
+  background-color: #258721 !important;
+}
+
+.footer-btn {
+  display: inline-block;
+  font-size: 12px;
+  line-height: 1;
+  color: #cca876;
+  border: 1px solid #202326;
+  border-radius: 3px;
+  padding: 12px 15px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.footer-btn:hover {
+  background-color: #202326;
+  color: #fff;
+}
+
+.footer_bottom p{
+  color: #a0a8b1;
+  padding: 15px 0;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.motion-frame {
+  max-width: 100% !important;
+  max-height: 25rem !important;
+  z-index: -1 !important;
+}
+
+.elementor{
+  background-color: #f5f5f5;
+  padding: 50px 0px 34px 0px;
+}
+
+.ProductNav{
+  position: relative !important;
+}
+
+.ProductNav ul{
+  z-index: 1111 !important;
+}
+
+.z-index{
+  z-index: 99999 !important;
+}
+
+/* bulletin style to list */
+
+.list-none {
+  list-style-type: none; /* Resets list style */
+}
+
+.list-none > li::marker {
+  content: '•'; /* Unicode character for a bullet */
+  /* You can customize the bullet style here */
+  color: #000; /* Match text color */
+  font-size: 14px;
+  position: absolute;
+  left: 0;
+}
+
+.list-none > li {
+  font-family: Montserrat;
+  position: relative;
+  color: #4a4a4a;
+  padding-left: 1.5em; /* Adjust spacing for the bullet */
+}
+.gps ul li{
+  font-family: Montserrat;
+  position: relative;
+  color: #4a4a4a;
+  padding-left: 1.5em;
+}
+
+.gps .widget_container h2{
+  font-size: 1.2rem ;
+}
+.c-container{
+  padding: 2rem 1rem;
+}
+.icon-location-pin{
+  color: #70d628;
+}
+.IconColor svg{
+  color: #70d628;
+  border: 1px solid #202326;
+  /* padding: 0 !important; */
+  border-radius: 4px;
+  padding: 7px;
+  height: 40px;
+  width: 40px;
+  margin-right: 15px;
+}
+.icon-location-pin:before{
+  content: "\e096";
+}
+.mobileView{z-index: 111;}
+
+.gps .rounded-full{
+  height: 3rem;
+}
+
+@media only screen and (max-width: 500px) {
+  .footer .container {
+    padding: 0 0rem;
+  }
+  .dropDownIcon{
+    position: relative;
+    left:1rem;
+  }
+  nav {
+    width: 100%;
+  }
+  .footerBottom{
+    padding: 0;
+  }
+  .CarouselImage{
+    top: 0 !important;
+    left: 0 !important;
+    margin: auto;
+  }
+}
+@media only screen and (max-width: 700px) {
+  .elementor-background-overlay{
+    width: 100%;
+  }
+}
+
+@media only screen and (min-width: 1100px) {
+  .gps .center .shadow-xl{
+    position: relative;
+    top: 6rem;
+  }
+  .RequestPage{
+    padding: 2rem 10rem;
+    display: inline-flex;
+  }
+  .RequestPage div{
+    width: 50%;
+  }
+  .c-container{
+    padding: 2rem 10rem;
+  }
+  .footerBottom{
+    padding: 2rem 10rem;
+  }
+}
