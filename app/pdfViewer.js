@@ -1,0 +1,251 @@
+"use client";
+import { useEffect, useState, useRef } from "react";
+import { Worker, Viewer } from "@react-pdf-viewer/core";
+import { defaultLayoutPlugin } from "@react-pdf-viewer/default-layout";
+import { PDFDocument, rgb } from "pdf-lib";
+import "@react-pdf-viewer/core/lib/styles/index.css";
+import "@react-pdf-viewer/default-layout/lib/styles/index.css";
+import "@react-pdf-viewer/zoom/lib/styles/index.css";
+import { FaArrowDown } from "react-icons/fa";
+
+export default function PdfPreview({ meta, url }: { meta: any; url: string }) {
+  const pdfW = meta.metadata.pdfPageSize.width; // 612
+  const pdfH = meta.metadata.pdfPageSize.height; // 792
+
+  const canvasW = meta.metadata.canvasSize.width; // 800
+  const canvasH = meta.metadata.canvasSize.height; // 1057
+
+  // Calculate scale factors (PDF to Canvas for drawing)
+  const scaleX = pdfW / canvasW; // 612 / 800 = 0.765
+  const scaleY = pdfH / canvasH; // 792 / 1057 = 0.749
+
+  console.log("Scale factors:", { scaleX, scaleY, pdfW, pdfH, canvasW, canvasH });
+
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [zoomValue, setZoomValue] = useState(1);
+  const [scrollOffset, setScrollOffset] = useState({ x: 0, y: 0 });
+  const [pagePosition, setPagePosition] = useState({ top: 0, left: 0 });
+
+  const defaultLayoutPluginInstance = defaultLayoutPlugin({
+    renderToolbar: () => <></>,
+    sidebarTabs: (defaultTabs) => [defaultTabs[0]],
+  });
+
+  // ----------------------------
+  // FIXED: MAPPING TO PDF COORD SYSTEM
+  // ----------------------------
+  async function mergeAnnotationsAndDownload(meta: any, drawings: any, url: any) {
+    const existingPdfBytes = await fetch(url).then((res) => res.arrayBuffer());
+
+    const pdfDoc = await PDFDocument.load(existingPdfBytes);
+    const page = pdfDoc.getPages()[0];
+    const { width, height } = page.getSize();
+
+    drawings.forEach((stroke: any) => {
+      for (let i = 1; i < stroke.points.length; i++) {
+        const p1 = stroke.points[i - 1];
+        const p2 = stroke.points[i];
+
+        // Convert canvas coordinates to PDF coordinates
+        const x1 = p1.x * scaleX;
+        const y1 = height - (p1.y * scaleY); // Invert Y for PDF coordinate system
+
+        const x2 = p2.x * scaleX;
+        const y2 = height - (p2.y * scaleY); // Invert Y for PDF coordinate system
+
+        page.drawLine({
+          start: { x: x1, y: y1 },
+          end: { x: x2, y: y2 },
+          thickness: (stroke.strokeWidth || 2) * ((scaleX + scaleY) / 2),
+          color: rgb(0, 0, 0),
+        });
+      }
+    });
+
+    const updatedPdf = await pdfDoc.save();
+    const blob = new Blob([updatedPdf], { type: "application/pdf" });
+
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${meta?.formName || "Annotated"}.pdf`;
+    link.click();
+  }
+
+  // Track PDF page position and scroll
+  useEffect(() => {
+    const updatePagePosition = () => {
+      // Find the PDF page element
+      const pageElement = document.querySelector(".rpv-core__page-layer") as HTMLElement;
+      console.log("Page Element:", pageElement);
+      if (pageElement && containerRef.current) {
+        const containerRect = containerRef.current.getBoundingClientRect();
+        const pageRect = pageElement.getBoundingClientRect();
+        console.log("Container Rect:", containerRect);
+          
+        // Calculate relative position within container
+        const top = pageRect.top - containerRect.top;
+        const left = pageRect.left - containerRect.left;
+
+        setPagePosition({ top, left });
+      }
+    };
+
+    // Update position after initial render and on resize
+    const timeoutId = setTimeout(updatePagePosition, 500);
+    window.addEventListener('resize', updatePagePosition);
+
+    // Also update when zoom changes
+    const zoomObserver = new MutationObserver(updatePagePosition);
+    const pageLayer = document.querySelector(".rpv-core__page-layer");
+    if (pageLayer) {
+      zoomObserver.observe(pageLayer, { attributes: true, attributeFilter: ['style'] });
+    }
+
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener('resize', updatePagePosition);
+      zoomObserver.disconnect();
+    };
+  }, []);
+
+  // Track Viewer Scroll
+  useEffect(() => {
+    const element = document.querySelector(".rpv-core__inner-pages") as HTMLElement;
+    if (!element) return;
+
+    const handleScroll = () => {
+      setScrollOffset({
+        x: element.scrollLeft,
+        y: element.scrollTop,
+      });
+    };
+
+    element.addEventListener("scroll", handleScroll);
+    return () => element.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Attach Canvas Overlay
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const pageLayer = document.querySelector(".rpv-core__page-layer") as HTMLElement;
+      const canvamargin = '0rem';
+      if (pageLayer && canvasRef.current) {
+        if (!pageLayer.contains(canvasRef.current)) {
+          // Position canvas absolutely within the page layer
+          canvasRef.current.style.position = "absolute";
+          canvasRef.current.style.top = `${canvamargin}`;
+          canvasRef.current.style.left = "0";
+          canvasRef.current.style.width = `${pdfW}px`;
+          canvasRef.current.style.height = `${pdfH}px`;
+          canvasRef.current.style.zIndex = "10"; // Higher z-index
+          canvasRef.current.style.pointerEvents = "none";
+
+          // Make page layer relative for absolute positioning
+          pageLayer.style.position = "relative";
+          pageLayer.appendChild(canvasRef.current);
+        }
+        clearInterval(interval);
+      }
+    }, 200);
+
+    return () => clearInterval(interval);
+  }, [pdfW, pdfH]);
+
+  // ----------------------------
+  // FIXED CANVAS PREVIEW DRAWING
+  // ----------------------------
+  useEffect(() => {
+    if (!canvasRef.current || !meta?.metadata.savedDrawings) return;
+
+    const canvas = canvasRef.current;
+    canvas.width = pdfW;
+    canvas.height = pdfH;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+
+    meta.metadata.savedDrawings.forEach((stroke: any) => {
+      ctx.beginPath();
+      // Scale stroke width properly
+      ctx.lineWidth = (stroke.strokeWidth || 2) * ((scaleX + scaleY) / 2);
+      ctx.strokeStyle = argbToRGBA(stroke.color);
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+
+      stroke.points.forEach((p: any, i: number) => {
+        // Scale from canvas coordinates to PDF coordinates
+        const x = p.x * scaleX;
+        const y = p.y * scaleY;
+
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+
+      ctx.stroke();
+    });
+  }, [meta, url, pdfW, pdfH, scaleX, scaleY]);
+
+  const argbToRGBA = (argb: number) => {
+    const a = ((argb >> 24) & 255) / 255;
+    const r = (argb >> 16) & 255;
+    const g = (argb >> 8) & 255;
+    const b = argb & 255;
+    return `rgba(${r}, ${g}, ${b}, ${a})`;
+  };
+
+  return (
+    <div className="relative bg-white p-2 shadow">
+      <button
+        onClick={() =>
+          mergeAnnotationsAndDownload(meta, meta.metadata.savedDrawings, url)
+        }
+        className="px-2 py-2 bg-green-600 text-white rounded mb-2"
+      >
+        <FaArrowDown /> 
+      </button>
+
+      <div
+        ref={containerRef}
+        className="relative border"
+        style={{
+          width: '100%',
+          height: '792px',
+          overflow: 'auto',
+          // paddingTop: '2.5rem',
+          transformOrigin: "top left",
+          // paddingBottom: '2.5rem',
+        }}
+      >
+        <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
+          <Viewer
+            fileUrl={url}
+            plugins={[defaultLayoutPluginInstance]}
+            defaultScale={1}
+            onZoom={(e) => setZoomValue(e.scale)}
+          />
+        </Worker>
+
+        {/* Canvas Overlay - positioned absolutely within the PDF page */}
+        <canvas
+          ref={canvasRef}
+          className="absolute pointer-events-none"
+          style={{
+            zIndex: 10,
+            transform: `translate(${scrollOffset.x}px, ${scrollOffset.y}px) scale(${zoomValue})`,
+            transformOrigin: "top left",
+            // top: `${pagePosition.top}px`,
+            // left: `${pagePosition.left}px`,
+            display: pagePosition.top === 0 && pagePosition.left === 0 ? 'none' : 'block'
+          }}
+        />
+      </div>
+    </div>
+  );
+}
