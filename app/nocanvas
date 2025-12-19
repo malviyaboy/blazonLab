@@ -1,0 +1,188 @@
+"use client";
+
+import { Worker, Viewer } from "@react-pdf-viewer/core";
+import { defaultLayoutPlugin } from "@react-pdf-viewer/default-layout";
+import { PDFDocument, rgb } from "pdf-lib";
+import "@react-pdf-viewer/core/lib/styles/index.css";
+import "@react-pdf-viewer/default-layout/lib/styles/index.css";
+import { FaArrowDown } from "react-icons/fa";
+
+type Point = {
+    x: number;
+    y: number;
+    strokeWidth?: number;
+};
+
+type Stroke = {
+    id: string;
+    pageIndex: number;
+    points: Point[];
+    color: number;
+    strokeWidth?: number;
+};
+
+export default function NoCanvas({
+    meta,
+    url,
+}: {
+    meta: {
+        metadata: {
+            savedDrawings: Stroke[];
+            pdfPageSize: { width: number; height: number }
+            canvasSize?: { width: number; height: number }
+        };
+    };
+    url: string;
+}) {
+
+
+    const defaultLayoutPluginInstance = defaultLayoutPlugin({
+        renderToolbar: () => <></>,
+        sidebarTabs: (tabs) => [tabs[0]],
+    });
+
+    const pdfH = meta.metadata.pdfPageSize.height; // 792
+    const pdfW = meta.metadata.pdfPageSize.width; // 612
+
+    const canvasH = meta.metadata.canvasSize?.height; // 1057
+    const canvasW = meta.metadata.canvasSize?.width; // 800
+
+    console.log("Meta in NoCanvas:", pdfH, pdfW);
+
+
+
+    /* ---------------- DOWNLOAD (pdf-lib) ---------------- */
+    async function downloadAnnotatedPdf() {
+        const pdfBytes = await fetch(url).then((r) => r.arrayBuffer());
+        const pdfDoc = await PDFDocument.load(pdfBytes);
+
+        // const pdfDoc = await PDFDocument.load(existingPdfBytes);
+
+        meta.metadata.savedDrawings.forEach((stroke: any) => {
+            const pageIndex = stroke.pageIndex ?? 0; // fallback
+            const page = pdfDoc.getPage(pageIndex);
+
+            const { width, height } = page.getSize();
+
+            for (let i = 1; i < stroke.points.length; i++) {
+                const p1 = stroke.points[i - 1];
+                const p2 = stroke.points[i];
+
+                const PDF_Y_OFFSET = 180; // 👈 PDF-space offset
+                const PDF_X_OFFSET = 50; // 👈 PDF-space offset
+
+                page.drawLine({
+                    start: {
+                        x: p1.x - PDF_X_OFFSET,
+                        y: (height+PDF_Y_OFFSET - p1.y),
+                    },
+                    end: {
+                        x: p2.x - PDF_X_OFFSET,
+                        y: (height+PDF_Y_OFFSET - p2.y),
+                    },
+                    thickness: stroke.strokeWidth || 1,
+                    color: rgb(0, 0, 0),
+                });
+            }
+        });
+
+
+        const finalPdf = await pdfDoc.save();
+        const blob = new Blob([finalPdf], { type: "application/pdf" });
+
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "annotated.pdf";
+        link.click();
+    }
+
+    return (
+        <div className="relative bg-white p-2 shadow">
+            <button
+                onClick={downloadAnnotatedPdf}
+                className="px-3 py-2 bg-green-600 text-white rounded mb-2 flex items-center gap-2"
+            >
+                <FaArrowDown /> Download
+            </button>
+
+            <div className="border h-[800px] overflow-auto relative">
+                <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
+                    <Viewer
+                        fileUrl={url}
+                        plugins={[defaultLayoutPluginInstance]}
+                        defaultScale={1}
+                        renderPage={(props) => (
+                            console.log("Rendering page with props:", props),
+                            <div >
+                                {props.canvasLayer.children}
+                                {props.textLayer.children}
+                                {props.annotationLayer.children}
+
+                                {/* 🔥 PREVIEW LAYER (SVG) */}
+                                <svg
+                                    width={props.width}
+                                    height={props.height}
+                                    viewBox={`0 0 ${props.width} ${props.height}`}
+                                    style={{
+                                        position: "absolute",
+                                        inset: 0,
+                                        pointerEvents: "none",
+                                    }}
+                                >
+                                    {meta.metadata.savedDrawings.map((stroke) => {
+                                        const { r, g, b, a } = argbToRgb(stroke.color);
+
+                                        const scaleX = props.width / pdfW;
+                                        const scaleY = props.height / pdfH;
+                                        console.log("Scales:", scaleX, scaleY);
+                                        const PDF_Y_OFFSET = 173; // 👈 PDF-space offset
+                                        const PDF_X_OFFSET = 47; // 👈 PDF-space offset
+
+                                        const d = stroke.points
+                                            .map((p, i) => {
+                                                const x = (p.x - PDF_X_OFFSET) * scaleX;
+                                                const y = (p.y - PDF_Y_OFFSET) * scaleY; // ✅ zoom-safe
+                                                return `${i === 0 ? "M" : "L"} ${x} ${y}`;
+                                            })
+                                            .join(" ");
+
+                                        return (
+                                            <path
+                                                key={stroke.id}
+                                                d={d}
+                                                stroke={`rgba(${r * 255},${g * 255},${b * 255},${a})`}
+                                                strokeWidth={(stroke.strokeWidth ?? 1) * scaleX}
+                                                fill="none"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                            />
+                                        );
+                                    })}
+
+
+                                </svg>
+                            </div>
+                        )}
+                    />
+                </Worker>
+            </div>
+        </div>
+    );
+}
+
+/* ---------------- HELPERS ---------------- */
+
+function pointsToPath(points: { x: number; y: number }[]) {
+    return points
+        .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
+        .join(" ");
+}
+
+function argbToRgb(argb: number) {
+    return {
+        a: ((argb >> 24) & 255) / 255,
+        r: ((argb >> 16) & 255) / 255,
+        g: ((argb >> 8) & 255) / 255,
+        b: (argb & 255) / 255,
+    };
+}
