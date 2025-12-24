@@ -1,0 +1,222 @@
+"use client";
+
+import { useEffect, useRef } from "react";
+import * as pdfjsLib from "pdfjs-dist";
+import "pdfjs-dist/build/pdf.worker.min";
+
+/* ==============================
+   CONSTANTS (EXACT HTML MATCH)
+================================ */
+
+const DPI = 300;
+const PDF_PPI = 72;
+
+const A4_WIDTH_IN = 8.27;
+const A4_HEIGHT_IN = 11.69;
+
+const CSS_WIDTH = 827;
+const CSS_HEIGHT = 1169;
+
+const CANVAS_WIDTH = Math.round(A4_WIDTH_IN * DPI);   // 2481
+const CANVAS_HEIGHT = Math.round(A4_HEIGHT_IN * DPI); // 3508
+
+/* ==============================
+   TYPES
+================================ */
+
+type Point = {
+    x: number;
+    y: number;
+};
+
+type Stroke = {
+    id: string;
+    points: Point[];
+    color: number;
+    strokeWidth: number;
+};
+
+type Meta = {
+    metadata: {
+        savedDrawings: Stroke[];
+    };
+};
+
+/* ==============================
+   COMPONENT
+================================ */
+
+export default function PdfAnnotationViewer({
+    url,
+    meta,
+}: {
+    url: string;
+    meta: Meta;
+}) {
+    const pdfCanvasRef = useRef<HTMLCanvasElement | null>(null);
+    const drawCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+    /* ==============================
+       CANVAS SETUP (HTML SAME)
+    ================================ */
+    function setupCanvas(canvas: HTMLCanvasElement) {
+        canvas.width = CANVAS_WIDTH;
+        canvas.height = CANVAS_HEIGHT;
+        canvas.style.width = `${CSS_WIDTH}px`;
+        canvas.style.height = `${CSS_HEIGHT}px`;
+    }
+
+    /* ==============================
+       RENDER PDF (HTML SAME)
+    ================================ */
+    useEffect(() => {
+        const renderPdf = async () => {
+            if (!pdfCanvasRef.current) return;
+            console.log("canvas PDF from URL:", url);
+
+            pdfjsLib.GlobalWorkerOptions.workerSrc =
+                "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+            const pdf = await pdfjsLib.getDocument(url).promise;
+            const page = await pdf.getPage(1);
+
+            const canvas = pdfCanvasRef.current;
+            setupCanvas(canvas);
+
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return;
+
+            const viewport = page.getViewport({
+                scale: DPI / PDF_PPI, // 🔥 SAME AS HTML
+            });
+
+            await page.render({
+                canvasContext: ctx,
+                viewport,
+            }).promise;
+        };
+
+        const initPdf = async () => {
+            await renderPdf();
+
+            if (!drawCanvasRef.current) return;
+            if (!meta?.metadata?.savedDrawings) return;
+
+            const canvas = drawCanvasRef.current;
+            setupCanvas(canvas);
+
+
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return;
+
+            meta.metadata.savedDrawings.forEach((stroke) => {
+                if (!stroke.points.length) return;
+
+                ctx.beginPath();
+                ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+
+                for (let i = 1; i < stroke.points.length; i++) {
+                    ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+                }
+
+                ctx.strokeStyle = argbToRGBA(stroke.color);
+                ctx.lineWidth = stroke.strokeWidth;
+                ctx.lineCap = "round";
+                ctx.lineJoin = "round";
+                ctx.stroke();
+            });
+
+        };
+
+        initPdf();
+    }, [url, meta]);
+
+    /* ==============================
+       RENDER DRAWINGS (HTML SAME)
+    ================================ */
+    //   useEffect(() => {
+    //     if (!drawCanvasRef.current) return;
+    //     if (!meta?.metadata?.savedDrawings) return;
+
+    //     const canvas = drawCanvasRef.current;
+    //     setupCanvas(canvas);
+
+
+    //     const ctx = canvas.getContext("2d");
+    //     if (!ctx) return;
+
+
+    //     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    //     meta.metadata.savedDrawings.forEach((stroke) => {
+    //       if (!stroke.points.length) return;
+
+    //       ctx.beginPath();
+    //       ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+
+    //       for (let i = 1; i < stroke.points.length; i++) {
+    //         ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+    //       }
+
+    //       ctx.strokeStyle = argbToRGBA(stroke.color);
+    //       ctx.lineWidth = stroke.strokeWidth;
+    //       ctx.lineCap = "round";
+    //       ctx.lineJoin = "round";
+    //       ctx.stroke();
+    //     });
+    //   }, [meta]);
+
+    /* ==============================
+       RENDER
+    ================================ */
+
+    return (
+        <div
+            style={{
+                position: "relative",
+                // width: `${CSS_WIDTH}px`,
+                // height: `${CSS_HEIGHT}px`,
+                width: "827px",
+                height: "1169px",
+                background: "white",
+                boxShadow: "0 0 10px rgba(0,0,0,.3)",
+                border: "2px solid #000",
+                zIndex: 10,  
+            }}
+        >
+            {/* PDF CANVAS */}
+            <canvas
+                ref={pdfCanvasRef}
+                style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    //   pointerEvents: "none",
+                }}
+            />
+
+            {/* DRAW CANVAS */}
+            <canvas
+                ref={drawCanvasRef}
+                style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    //   pointerEvents: "none",
+                }}
+            />
+        </div>
+    );
+}
+
+/* ==============================
+   HELPERS
+================================ */
+
+function argbToRGBA(argb: number) {
+    const a = ((argb >> 24) & 255) / 255;
+    const r = (argb >> 16) & 255;
+    const g = (argb >> 8) & 255;
+    const b = argb & 255;
+    return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
